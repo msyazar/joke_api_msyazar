@@ -2,6 +2,8 @@
 
 ### Terraform
 Create infrastructure
+* VPC
+* Security Groups
 * key pair
 * ec2 instance
 * ebs volume
