@@ -1,1 +1,82 @@
 
+---
+- name: "AWS - Install docker"
+  hosts: all
+  become: yes
+  tasks:
+    - name: Update all packages
+      yum:
+        name: '*'
+        state: latest
+        update_only: yes
+
+    - name: Ensure a list of yum packages are installed
+      yum:
+        name: 
+          - git
+          - python3
+          - python-pip
+          - yum-utils
+          - device-mapper-persistent-data
+          - lvm2
+          - amazon-linux-extras
+        state: latest
+        update_cache: yes
+
+    - name: Add extras repository
+      shell: yum-config-manager --enable extras
+
+    - name: Install docker-ce (centos) via amazon-linux-extras packages
+      shell: "amazon-linux-extras install docker=18.06.1 -y"
+
+    - name: Enable Docker CE service at startup
+      service:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Add Jenkins repository
+      get_url:
+        url: https://pkg.jenkins.io/redhat-stable/jenkins.repo
+        dest: /etc/yum.repos.d/jenkins.repo
+
+    - name: Add extras repository
+      shell: rpm --import https://pkg.jenkins.io/redhat-stable/jenkins.io.key
+
+    - name: Install Jenkins
+      yum:
+        name:
+          - jenkins
+          - java-1.8.0-openjdk-devel
+        state: present
+
+    - name: Add the user 'jenkins'
+      user:
+       name: jenkins
+       groups: docker
+       append: yes
+    
+    - name: file permissions
+      file:
+        path: /var/run/docker.sock
+        mode: '777'
+
+    - name: System daemon reload
+      ansible.builtin.systemd:
+        daemon_reload: yes
+
+    - name: Run Jenkins
+      ansible.builtin.systemd:
+        name: jenkins
+        state: started
+        enabled: yes
+
+    - name: initialAdminPassword file
+      wait_for:
+        path: /var/lib/jenkins/secrets/initialAdminPassword
+        state: present
+        timeout: 15
+        msg: Something happened.
+
+    - name: Print Jenkins Password
+      shell: cat /var/lib/jenkins/secrets/initialAdminPassword
